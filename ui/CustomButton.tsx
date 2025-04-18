@@ -2,17 +2,19 @@ import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface CustomButtonProps {
-    title: string,
-    variant?: 'default' | 'outline' 
+    title: string;
+    variant?: "default" | "outline";
+    backgroundColor?: string;
 }
 
-const CustomButton: React.FC<CustomButtonProps> = ({title, variant = 'default'}) => {
+const CustomButton: React.FC<CustomButtonProps> = ({ title, variant = "default", backgroundColor }) => {
   return (
-    <TouchableOpacity style={[styles.container, variant === 'outline' && styles.outlinedContainer]}>
-      <Text style={[styles.text, variant === 'outline' && styles.outlinedText]}>{title}</Text>
+    <TouchableOpacity style={[styles.container, { backgroundColor }, variant === "outline" && styles.outlinedContainer]}>
+      <Text style={[styles.text, variant === "outline" && styles.outlinedText]}>{title}</Text>
     </TouchableOpacity>
-  )
-}
+  );
+};
+
 
 const styles = StyleSheet.create({
     container: {

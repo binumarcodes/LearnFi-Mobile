@@ -1,50 +1,73 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { ethers } from "ethers";
-import detectEthereumProvider from "@metamask/detect-provider";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../util/firebase";
+import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 
 function WalletScreen() {
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [balance, setBalance] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<{ balance: string; address: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Function to connect wallet
-  const connectWallet = async () => {
-    try {
-      const provider: any = await detectEthereumProvider();
+  useEffect(() => {
+    const fetchWallet = async () => {
+      setLoading(true);
+      try {
+        const user = auth.currentUser;
+        if (!user) throw new Error("User not logged in");
 
-      if (!provider) {
-        alert("MetaMask or a Web3 provider is required.");
-        return;
+        const userRef = doc(db, "learners", user.uid);
+        const docSnap = await getDoc(userRef);
+
+        if (docSnap.exists()) {
+          setWallet({
+            balance: docSnap.data().walletBalance,  // Assuming walletBalance exists in Firestore
+            address: docSnap.data().walletAddress,
+          });
+        } else {
+          console.error("No wallet data found in Firestore");
+        }
+      } catch (error) {
+        console.error("Error fetching wallet:", error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const ethersProvider = new ethers.BrowserProvider(provider);
-      const signer = await ethersProvider.getSigner();
-      const address = await signer.getAddress();
-      const balance = await ethersProvider.getBalance(address);
-      const formattedBalance = ethers.formatEther(balance);
+    fetchWallet();
+  }, []);
 
-      setWalletAddress(address);
-      setBalance(formattedBalance);
-    } catch (error) {
-      console.error("Wallet connection error:", error);
-      alert("Failed to connect wallet.");
-    }
+  const copyToClipboard = async (text: string) => {
+    await Clipboard.setStringAsync(text);
+  };
+
+  const shortenAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Wallet</Text>
+      <Text style={styles.title}>XION Wallet</Text>
 
-      {/* Display wallet address */}
-      {walletAddress ? (
-        <>
-          <Text style={styles.info}>Address: {walletAddress}</Text>
-          <Text style={styles.info}>Balance: {balance} ETH</Text>
-        </>
+      {loading ? (
+        <ActivityIndicator size="large" color="#bbb" />
+      ) : wallet ? (
+        <View style={styles.card}>
+          
+          <Text style={styles.info}>🏦 Address:</Text>
+          <View style={styles.addressContainer}>
+            <Text style={styles.address}>{shortenAddress(wallet.address)}</Text>
+            <TouchableOpacity onPress={() => copyToClipboard(wallet.address)}>
+              <Ionicons name="copy-outline" size={20} color="#bbb" style={styles.copyIcon} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.info}>💰 Balance:</Text>
+          <Text style={styles.balance}>0.00</Text>
+
+        </View>
       ) : (
-        <TouchableOpacity style={styles.button} onPress={connectWallet}>
-          <Text style={styles.buttonText}>Connect Wallet</Text>
-        </TouchableOpacity>
+        <Text style={styles.error}>No wallet found</Text>
       )}
     </View>
   );
@@ -55,26 +78,66 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#121212",
+    padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "bold",
     marginBottom: 20,
+    color: "#bbb",
+  },
+  card: {
+    backgroundColor: "#1e1e1e",
+    padding: 20,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    width: "90%",
   },
   info: {
     fontSize: 16,
+    marginBottom: 5,
+    marginTop: 5,
+    fontWeight: "bold",
+    color: "#ddd",
+  },
+  balance: {
+    fontSize: 18,
+    color: "#aad4ff",
+    textAlign: "center",
     marginBottom: 10,
+    backgroundColor: "#003366",
+    padding: 10,
+    borderRadius: 5,
   },
-  button: {
-    backgroundColor: "#007bff",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+  addressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#003300",
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 5,
+    marginBottom: 10,
+
   },
-  buttonText: {
-    color: "#fff",
+  address: {
+    fontSize: 14,
+    color: "#66ff66",
+    flex: 1,
+  },
+  copyIcon: {
+    marginLeft: 10,
+  },
+  error: {
     fontSize: 16,
+    color: "#ff6666",
+    textAlign: "center",
+    marginTop: 10,
   },
 });
 
